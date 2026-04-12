@@ -18,7 +18,7 @@ provincias = ["Azuay", "Bolívar", "Cañar", "Carchi", "Chimborazo", "Cotopaxi",
 origenes = ["Granja", "Casa", "Laboratorio", "Mercado al aire libre", "Tienda de mascotas", "Matadero", "Tienda de alimentos, puntos de venta", "Hospital veterinario", "Clínica veterinaria", "Hábitat natural", "Desconocido", "Otro"]
 programas = ["Vigilancia", "Cuarentena", "Cliente Externo"]
 especies = ["Aves", "Cerdos", "Bovinos"]
-muestras = ["Hisopado", "Heces"]
+muestras = ["Carne", "Heces"]
 bacterias = ["E. coli", "Salmonella spp."]
 atbs_keys = ['amp', 'czo', 'caz', 'cro', 'fep', 'etp', 'mem', 'gen', 'cip', 'nor', 'fos', 'tmp']
 
