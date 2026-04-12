@@ -5,7 +5,7 @@ from datetime import date
 
 # --- 1. CONEXIÓN (Usa tus credenciales) ---
 SUPABASE_URL = st.secrets["https://xbqwxdcelgjwpancjjlj.supabase.co"]
-SUPABASE_KEY = st.secrets["sb_publishable_nfgyivDM0dpr_xD16EZ5RQ_LBXjXzwI"]
+SUPABASE_KEY = st.secrets["sb_secret_kpYXLRT0WcPRFXbLnmgxoQ_nfQMmPfC"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title="LIMS Profesional RAM", layout="wide")
