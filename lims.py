@@ -13,7 +13,7 @@ except Exception as e:
 
 st.set_page_config(page_title="LIMS RAM Nacional", layout="wide")
 
-# --- LISTAS ---
+# --- LISTAS DE OPCIONES ---
 provincias = ["Azuay", "Bolívar", "Cañar", "Carchi", "Chimborazo", "Cotopaxi", "El Oro", "Esmeraldas", "Galápagos", "Guayas", "Imbabura", "Loja", "Los Ríos", "Manabí", "Morona Santiago", "Napo", "Orellana", "Pastaza", "Pichincha", "Santa Elena", "Santo Domingo de los Tsáchilas", "Sucumbíos", "Tungurahua", "Zamora Chinchipe"]
 origenes = ["Granja", "Casa", "Laboratorio", "Mercado al aire libre", "Tienda de mascotas", "Matadero", "Tienda de alimentos, puntos de venta", "Hospital veterinario", "Clínica veterinaria", "Hábitat natural", "Desconocido", "Otro"]
 programas = ["Vigilancia", "Cuarentena", "Cliente Externo"]
@@ -25,12 +25,11 @@ atbs_keys = ['amp', 'czo', 'caz', 'cro', 'fep', 'etp', 'mem', 'gen', 'cip', 'nor
 st.title("🔬 Registro de Resistencia")
 
 with st.form("formulario_lims"):
-    st.subheader("🆔 Identificación Única")
-    # AQUÍ ESTÁ EL CAMPO QUE NECESITAS
-    codigo_id = st.text_input("Código de la Muestra (Ej: LAB-2026-001)")
+    st.subheader("🆔 Identificación de la Muestra")
+    # Este dato será tu ID en la base de datos
+    codigo_id = st.text_input("Ingrese el Código de Muestra (ID)", placeholder="Ej: 2026-AVE-001")
 
     st.write("---")
-    st.subheader("📋 Datos de Origen")
     c1, c2, c3, c4 = st.columns(4)
     origen = c1.selectbox("Origen", origenes)
     anio = c2.number_input("Año", 2020, 2030, 2026)
@@ -43,19 +42,19 @@ with st.form("formulario_lims"):
     bacteria = c7.selectbox("Bacteria", bacterias)
 
     st.write("---")
-    st.subheader("🧪 Resultados (S / I / R)")
+    st.subheader("🧪 Resultados Antibióticos")
     cols = st.columns(6)
     resultados = {}
     for i, atb in enumerate(atbs_keys):
         with cols[i % 6]:
             resultados[atb] = st.selectbox(atb.upper(), ["S", "I", "R"], key=atb)
 
-    if st.form_submit_button("💾 GUARDAR REGISTRO"):
+    if st.form_submit_button("💾 REGISTRAR MUESTRA"):
         if not codigo_id:
-            st.warning("⚠️ El Código de la Muestra es obligatorio.")
+            st.warning("⚠️ Debes ingresar un Código de Muestra para poder guardar.")
         else:
             datos = {
-                "codigo_muestra": codigo_id, # Enviamos tu código manual
+                "codigo_muestra": codigo_id, # Se registra como la llave primaria
                 "origen": origen, 
                 "año": anio, 
                 "provincia": provincia,
@@ -68,14 +67,15 @@ with st.form("formulario_lims"):
             
             try:
                 supabase.table("registros_resistencia").insert(datos).execute()
-                st.success(f"✅ ¡Muestra {codigo_id} registrada!")
+                st.success(f"✅ Muestra {codigo_id} registrada exitosamente.")
                 st.balloons()
             except Exception as e:
-                st.error(f"Error al insertar: {e}")
+                st.error(f"Error: Tal vez el código {codigo_id} ya existe. Detalle: {e}")
 
-# --- TABLA DE CONSULTA ---
+# --- CONSULTA ---
 st.write("---")
-if st.button("📊 Mostrar Registros"):
-    res = supabase.table("registros_resistencia").select("*").order("fecha_creacion", desc=True).execute()
+if st.button("📊 Ver Base de Datos"):
+    res = supabase.table("registros_resistencia").select("*").execute()
     if res.data:
+        # Mostramos la tabla. Verás que 'codigo_muestra' aparece como la primera columna
         st.dataframe(pd.DataFrame(res.data), use_container_width=True)
