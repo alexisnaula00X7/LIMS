@@ -6,8 +6,8 @@ from datetime import date
 # --- 1. CONFIGURACIÓN DE CONEXIÓN ---
 # Se usan etiquetas. Los valores reales van en el panel "Secrets" de Streamlit Cloud.
 try:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+    url = st.secrets["https://pfdthsxlhpncheutmunm.supabase.co"]
+    key = st.secrets["sb_publishable_jv-VDpWieP9D0r0tUEndmw_ZYQB0NJz"]
     supabase: Client = create_client(url, key)
 except Exception as e:
     st.error("⚠️ Error: No se encontraron las credenciales en los Secrets de Streamlit.")
