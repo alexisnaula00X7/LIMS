@@ -79,3 +79,70 @@ if st.button("📊 Ver Base de Datos"):
     if res.data:
         # Mostramos la tabla. Verás que 'codigo_muestra' aparece como la primera columna
         st.dataframe(pd.DataFrame(res.data), use_container_width=True)
+import plotly.express as px # <--- Nueva importación
+
+# ... (Todo el código anterior del formulario se mantiene igual)
+
+# --- 4. VISUALIZACIÓN Y ANALÍTICA EN TIEMPO REAL ---
+st.markdown("---")
+st.header("📊 Analítica de Prevalencia en Tiempo Real")
+
+if st.button("🔄 Actualizar Gráficos y Datos"):
+    try:
+        res = supabase.table("registros_resistencia").select("*").execute()
+        
+        if res.data:
+            df = pd.DataFrame(res.data)
+            
+            # --- CÁLCULO DE PREVALENCIA ---
+            # Derivamos el % de Resistencia (R) para cada antibiótico
+            prevalencia_data = []
+            for atb in atbs_keys:
+                total = len(df[atb])
+                resistentes = len(df[df[atb] == "R"])
+                porcentaje = (resistentes / total * 100) if total > 0 else 0
+                prevalencia_data.append({"Antibiótico": atb.upper(), "Prevalencia (%)": porcentaje})
+            
+            df_prev = pd.DataFrame(prevalencia_data)
+
+            # --- DISEÑO DE LA PÁGINA DE ANALÍTICA ---
+            col_chart, col_table = st.columns([2, 1])
+
+            with col_chart:
+                st.subheader("Porcentaje de Resistencia por Antibiótico")
+                fig = px.bar(
+                    df_prev, 
+                    x="Antibiótico", 
+                    y="Prevalencia (%)",
+                    text_auto='.1f',
+                    color="Prevalencia (%)",
+                    color_continuous_scale="Reds",
+                    range_y=[0, 100]
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col_table:
+                st.subheader("Datos Crudos")
+                st.dataframe(df_prev.set_index("Antibiótico"))
+
+            # --- FILTRO POR BACTERIA ---
+            st.markdown("---")
+            st.subheader("Prevalencia por Bacteria")
+            bact_filtro = st.selectbox("Selecciona una bacteria para ver su perfil:", options=df["bacteria"].unique())
+            
+            df_bact = df[df["bacteria"] == bact_filtro]
+            prev_bact = []
+            for atb in atbs_keys:
+                t = len(df_bact)
+                r = len(df_bact[df_bact[atb] == "R"])
+                p = (r / t * 100) if t > 0 else 0
+                prev_bact.append({"ATB": atb.upper(), "R %": p})
+            
+            fig_bact = px.line(prev_bact, x="ATB", y="R %", markers=True, title=f"Perfil de Resistencia: {bact_filtro}")
+            st.plotly_chart(fig_bact, use_container_width=True)
+
+        else:
+            st.info("No hay suficientes datos para generar gráficos aún.")
+            
+    except Exception as e:
+        st.error(f"Error al generar gráficos: {e}")
