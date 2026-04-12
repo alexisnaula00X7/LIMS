@@ -1,89 +1,65 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
+from supabase import create_client, Client
 import pandas as pd
 from datetime import date
 
-# 1. Configuración de la página (Solo debe aparecer una vez al principio)
-st.set_page_config(page_title="LIMS Resistencia RAM", layout="wide")
+# 1. Conexión a Supabase
+# En producción, usa st.secrets para proteger estas claves
+SUPABASE_URL = "https://supabase.com/dashboard/project/xbqwxdcelgjwpancjjlj/database/schemas"
+SUPABASE_KEY = "sb_secret_xotldyoauUJ2awRx2pXUCA_MKQ0wgKk"
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 2. Conexión con Google Sheets
-# IMPORTANTE: Asegúrate de que este link sea de una HOJA DE CÁLCULO de Google, no un archivo de Drive común.
-url = "https://docs.google.com/spreadsheets/d/1oiUle_aOUTejTI3o4QnHFX2ypKP6t8-HLU-M69ZJCZM/edit?usp=sharing"
-conn = st.connection("gsheets", type=GSheetsConnection)
+st.set_page_config(page_title="LIMS Cloud (Supabase)", layout="wide")
 
-# 3. Lista de antibióticos
 atbs = ['AMP', 'CIP', 'FEP', 'CRO', 'CAZ', 'CZO', 'ETP', 'FOS', 'GEN', 'MEM', 'NOR', 'TMP']
 
-st.title("🔬 LIMS - Registro de Resistencia Antimicrobiana")
-st.markdown("---")
+st.title("🔬 LIMS Cloud - Registro con Supabase")
 
-# 4. Formulario de Entrada
-with st.form("registro_principal"):
+# --- FORMULARIO ---
+with st.form("registro_supabase"):
     c1, c2 = st.columns(2)
-    with c1:
-        id_muestra = st.text_input("🆔 ID de Muestra / Código Paciente")
-    with c2:
-        fecha = st.date_input("📅 Fecha de Proceso", date.today())
-
-    st.write("### 🧫 Resultados del Panel (S/I/R)")
+    id_muestra = c1.text_input("🆔 ID de Muestra")
+    fecha = c2.date_input("📅 Fecha", date.today())
     
-    # Creamos 4 columnas para que queden 3 antibióticos por fila
+    st.write("### Panel de Antibióticos")
     cols = st.columns(4)
-    res = {}
-    for i, atb in enumerate(atbs):
-        with cols[i % 4]:
-            res[atb] = st.selectbox(f"**{atb}**", ["S", "I", "R"], key=atb)
-
-    st.markdown("---")
-    boton_guardar = st.form_submit_button("💾 Guardar en la Nube")
-
-    if boton_guardar:
+    res = {atb: cols[i % 4].selectbox(atb, ["S", "I", "R"], key=atb) for i, atb in enumerate(atbs)}
+    
+    if st.form_submit_button("💾 Guardar en Supabase"):
         if id_muestra:
+            # Preparar los datos para Supabase
+            datos = {
+                "id_muestra": id_muestra,
+                "fecha": str(fecha),
+                **res
+            }
+            
+            # Enviar a la base de datos
             try:
-                # Preparar nueva fila
-                nueva_fila = pd.DataFrame([{
-                    "ID": id_muestra,
-                    "Fecha": str(fecha),
-                    **res
-                }])
-
-                # Leer datos actuales, concatenar y subir
-                existente = conn.read(spreadsheet=url)
-                actualizado = pd.concat([existente, nueva_fila], ignore_index=True)
-                conn.update(spreadsheet=url, data=actualizado)
-                
-                st.success(f"✅ Muestra {id_muestra} guardada con éxito.")
+                response = supabase.table("resultados").insert(datos).execute()
+                st.success(f"✅ Muestra {id_muestra} guardada en la nube.")
             except Exception as e:
-                st.error(f"Error al conectar con Google Sheets: {e}")
+                st.error(f"Error al guardar: {e}")
         else:
-            st.warning("⚠️ Por favor, ingresa un ID de muestra antes de guardar.")
+            st.warning("Escribe el ID de la muestra.")
 
-# 5. Alertas Microbiológicas (Solo se muestran si se detectan ciertos perfiles)
-if res['MEM'] == 'R' or res['ETP'] == 'R':
-    st.warning("⚠️ **ALERTA:** Posible Carbapenemasa detectada. Verificar cepa.")
-
-if res['MEM'] == 'R' and res['ETP'] == 'R' and res['CIP'] == 'R':
-    st.error("🚨 **ALERTA:** Perfil de multirresistencia detectado (Carbapenémicos + Quinolonas).")
-
-# 6. Histórico y Estadísticas
+# --- VISUALIZACIÓN DE DATOS ---
 st.markdown("---")
-st.header("📊 Histórico y Estadísticas")
-
-if st.button("🔄 Actualizar Historial"):
+if st.button("🔄 Consultar Base de Datos Online"):
     try:
-        df_historico = conn.read(spreadsheet=url)
+        # Consultar datos de la tabla
+        query = supabase.table("resultados").select("*").execute()
+        df = pd.DataFrame(query.data)
         
-        # Tabla de datos
-        st.subheader("Registros recientes")
-        st.dataframe(df_historico, use_container_width=True)
-
-        # Gráfico de resistencia
-        st.subheader("📈 Análisis por Antibiótico")
-        atb_analizar = st.selectbox("Selecciona un antibiótico para ver estadística:", atbs)
-        
-        if atb_analizar in df_historico.columns:
-            conteo = df_historico[atb_analizar].value_counts()
+        if not df.empty:
+            st.subheader("📊 Registros en la Nube")
+            st.dataframe(df, use_container_width=True)
+            
+            # Gráfico rápido de un antibiótico
+            atb_sel = st.selectbox("Estadística de:", atbs)
+            conteo = df[atb_sel].value_counts()
             st.bar_chart(conteo)
-        
+        else:
+            st.info("La base de datos está vacía.")
     except Exception as e:
-        st.info("Aún no hay datos para mostrar o el archivo no es accesible.")
+        st.error(f"Error al conectar: {e}")
