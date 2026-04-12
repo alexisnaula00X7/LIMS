@@ -1,80 +1,102 @@
 import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
+from datetime import date
 
-# 1. Conexión (Asegúrate de tener estos nombres en tus Secrets de Streamlit)
+# --- 1. CONFIGURACIÓN DE CONEXIÓN ---
+# Se usan etiquetas. Los valores reales van en el panel "Secrets" de Streamlit Cloud.
 try:
-    url = st.secrets["https://pfdthsxlhpncheutmunm.supabase.co"]
-    key = st.secrets["sb_secret_Gp4ZYEnk85--IoTv92ltcw_lmK-4BlX"]
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(url, key)
 except Exception as e:
-    st.error("Error al cargar credenciales. Revisa los Secrets.")
+    st.error("⚠️ Error: No se encontraron las credenciales en los Secrets de Streamlit.")
+    st.info("Asegúrate de haber configurado SUPABASE_URL y SUPABASE_KEY en el panel de Settings.")
     st.stop()
 
 st.set_page_config(page_title="LIMS RAM Nacional", layout="wide")
 
-# Lista de antibióticos (en minúsculas para la BD)
-atbs = ['amp', 'czo', 'caz', 'cro', 'fep', 'etp', 'mem', 'gen', 'cip', 'nor', 'fos', 'tmp']
+# Lista de antibióticos para el formulario (en minúsculas para la base de datos)
+atbs_keys = ['amp', 'czo', 'caz', 'cro', 'fep', 'etp', 'mem', 'gen', 'cip', 'nor', 'fos', 'tmp']
 
-st.title("🔬 Sistema de Ingreso de Datos de Resistencia")
+# --- 2. INTERFAZ DE USUARIO ---
+st.title("🔬 Sistema de Registro de Resistencia Bacteriana")
+st.markdown("---")
 
-# 2. El Formulario (Define todas las variables aquí dentro)
-with st.form("formulario_ingreso"):
-    st.subheader("Información General")
-    c1, c2, c3, c4 = st.columns(4)
-    origen = c1.text_input("Origen")
-    anio = c2.number_input("Año", 2020, 2030, 2026)
-    provincia = c3.text_input("Provincia")
-    programa = c4.text_input("Programa")
+with st.form("formulario_lims"):
+    st.subheader("📋 Datos Generales de la Muestra")
     
-    c5, c6, c7 = st.columns(3)
-    especie = c5.text_input("Especie")
-    muestra = c6.text_input("Tipo de Muestra")
-    bacteria = c7.text_input("Bacteria")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        origen = st.text_input("Origen")
+    with col2:
+        anio = st.number_input("Año", min_value=2020, max_value=2030, value=2026)
+    with col3:
+        provincia = st.text_input("Provincia")
+    with col4:
+        programa = st.text_input("Programa")
+        
+    col5, col6, col7 = st.columns(3)
+    with col5:
+        especie = st.text_input("Especie")
+    with col6:
+        tipo_muestra = st.text_input("Tipo de Muestra")
+    with col7:
+        bacteria = st.text_input("Bacteria / Microorganismo")
 
-    st.subheader("Resultados de Antibióticos (S/I/R)")
-    cols = st.columns(6)
-    resultados = {}
-    for i, atb in enumerate(atbs):
-        with cols[i % 6]:
-            # Guardamos la elección del usuario en el diccionario
-            resultados[atb] = st.selectbox(atb.upper(), ["S", "I", "R"], key=atb)
+    st.markdown("---")
+    st.subheader("🧪 Resultados de Antibiograma (S / I / R)")
+    
+    # Generar columnas para los selectores de antibióticos
+    cols_atb = st.columns(6)
+    resultados_usuario = {}
+    
+    for i, atb in enumerate(atbs_keys):
+        with cols_atb[i % 6]:
+            # Guardamos la selección usando la clave en minúsculas
+            resultados_usuario[atb] = st.selectbox(atb.upper(), ["S", "I", "R"], key=f"sel_{atb}")
 
-    # El botón de enviar debe estar dentro del 'with st.form'
-    enviar = st.form_submit_button("💾 Guardar Registro")
+    st.markdown("<br>", unsafe_allow_html=True)
+    enviar = st.form_submit_button("💾 GUARDAR REGISTRO EN LA NUBE")
 
     if enviar:
-        if not id_muestra and not origen: # Validación simple
-            st.warning("⚠️ Por favor rellena al menos el campo Origen.")
+        # Validación básica de campos obligatorios
+        if not origen or not bacteria:
+            st.error("❌ Por favor, completa al menos los campos 'Origen' y 'Bacteria'.")
         else:
-            # 3. Construcción del diccionario (Aquí es donde daba el NameError)
-            # Ahora origen, anio, etc., están definidos arriba.
-            datos_para_enviar = {
+            # Construcción del objeto de datos
+            # IMPORTANTE: Los nombres de las llaves deben ser iguales a las columnas de tu tabla SQL
+            datos_registro = {
                 "origen": origen,
                 "año": anio,
                 "provincia": provincia,
                 "programa": programa,
                 "especie": especie,
-                "tipo_de_muestra": muestra,
+                "tipo_de_muestra": tipo_muestra,
                 "bacteria": bacteria,
-                **resultados # Esto añade amp, czo, caz... automáticamente
+                **resultados_usuario # Esto expande amp, czo, caz...
             }
             
             try:
-                supabase.table("registros_resistencia").insert(datos_para_enviar).execute()
-                st.success("✅ Registro guardado exitosamente en la base de datos.")
+                # Inserción en la tabla de Supabase
+                response = supabase.table("registros_resistencia").insert(datos_registro).execute()
+                st.success(f"✅ Registro guardado exitosamente para la bacteria: {bacteria}")
+                st.balloons()
             except Exception as e:
-                st.error(f"Error al guardar en Supabase: {e}")
+                st.error(f"❌ Error al guardar en la base de datos: {e}")
 
-# 4. Sección de Consulta
+# --- 3. VISUALIZACIÓN DE DATOS ---
 st.markdown("---")
-if st.button("📊 Ver Historial de Datos"):
+st.subheader("📊 Historial de Registros")
+
+if st.button("🔄 Actualizar Tabla de Datos"):
     try:
-        response = supabase.table("registros_resistencia").select("*").execute()
-        if response.data:
-            df = pd.DataFrame(response.data)
+        res = supabase.table("registros_resistencia").select("*").order('fecha_creacion', desc=True).execute()
+        if res.data:
+            df = pd.DataFrame(res.data)
+            # Reordenar para ver primero los datos generales
             st.dataframe(df, use_container_width=True)
         else:
-            st.info("No hay datos registrados aún.")
+            st.info("Aún no hay registros en la base de datos.")
     except Exception as e:
-        st.error(f"No se pudo leer la base de datos: {e}")
+        st.error(f"No se pudieron cargar los datos: {e}")
