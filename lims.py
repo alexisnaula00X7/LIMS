@@ -25,6 +25,12 @@ atbs_keys = ['amp', 'czo', 'caz', 'cro', 'fep', 'etp', 'mem', 'gen', 'cip', 'nor
 st.title("🔬 Registro de Resistencia")
 
 with st.form("formulario_lims"):
+    st.subheader("🆔 Identificación Única")
+    # AQUÍ ESTÁ EL CAMPO QUE NECESITAS
+    codigo_id = st.text_input("Código de la Muestra (Ej: LAB-2026-001)")
+
+    st.write("---")
+    st.subheader("📋 Datos de Origen")
     c1, c2, c3, c4 = st.columns(4)
     origen = c1.selectbox("Origen", origenes)
     anio = c2.number_input("Año", 2020, 2030, 2026)
@@ -37,31 +43,39 @@ with st.form("formulario_lims"):
     bacteria = c7.selectbox("Bacteria", bacterias)
 
     st.write("---")
+    st.subheader("🧪 Resultados (S / I / R)")
     cols = st.columns(6)
     resultados = {}
     for i, atb in enumerate(atbs_keys):
         with cols[i % 6]:
             resultados[atb] = st.selectbox(atb.upper(), ["S", "I", "R"], key=atb)
 
-    if st.form_submit_button("💾 GUARDAR"):
-        # NOTA: No incluimos el ID aquí, la DB lo pone sola
-        datos = {
-            "origen": origen, "año": anio, "provincia": provincia,
-            "programa": programa, "especie": especie, 
-            "tipo_de_muestra": tipo_muestra, "bacteria": bacteria,
-            **resultados
-        }
-        
-        try:
-            # Intentar insertar
-            supabase.table("registros_resistencia").insert(datos).execute()
-            st.success("✅ ¡Registrado con éxito!")
-        except Exception as e:
-            st.error(f"Error: {e}")
+    if st.form_submit_button("💾 GUARDAR REGISTRO"):
+        if not codigo_id:
+            st.warning("⚠️ El Código de la Muestra es obligatorio.")
+        else:
+            datos = {
+                "codigo_muestra": codigo_id, # Enviamos tu código manual
+                "origen": origen, 
+                "año": anio, 
+                "provincia": provincia,
+                "programa": programa, 
+                "especie": especie, 
+                "tipo_de_muestra": tipo_muestra, 
+                "bacteria": bacteria,
+                **resultados
+            }
+            
+            try:
+                supabase.table("registros_resistencia").insert(datos).execute()
+                st.success(f"✅ ¡Muestra {codigo_id} registrada!")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Error al insertar: {e}")
 
 # --- TABLA DE CONSULTA ---
 st.write("---")
 if st.button("📊 Mostrar Registros"):
-    res = supabase.table("registros_resistencia").select("*").order("id").execute()
+    res = supabase.table("registros_resistencia").select("*").order("fecha_creacion", desc=True).execute()
     if res.data:
-        st.table(res.data) # st.table muestra el ID automáticamente
+        st.dataframe(pd.DataFrame(res.data), use_container_width=True)
