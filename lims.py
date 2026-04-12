@@ -8,7 +8,7 @@ st.set_page_config(page_title="LIMS Resistencia RAM", layout="wide")
 
 # 2. Conexión con Google Sheets
 # IMPORTANTE: Asegúrate de que este link sea de una HOJA DE CÁLCULO de Google, no un archivo de Drive común.
-url = "https://drive.google.com/file/d/13jfBryqSa6Lb9u7pYxsfccwhvAly8-9z/view?usp=sharing"
+url = "https://docs.google.com/spreadsheets/d/1oiUle_aOUTejTI3o4QnHFX2ypKP6t8-HLU-M69ZJCZM/edit?usp=sharing"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # 3. Lista de antibióticos
