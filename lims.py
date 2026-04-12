@@ -1,43 +1,89 @@
 import streamlit as st
 from supabase import create_client, Client
+import pandas as pd
+from datetime import date
 
-# ... (tu conexión a supabase sigue igual)
+# --- 1. CONEXIÓN (Usa tus credenciales) ---
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def guardar_resultados_relacionales(id_muestra, resultados_dict):
-    try:
-        # 1. Preparamos los datos para insertar varias filas
-        # En tu tabla, cada antibiótico es un registro independiente
-        filas_a_insertar = []
-        
-        for atb_codigo, interpretacion in resultados_dict.items():
-            # Necesitamos el ID del antibiótico. 
-            # Como ejemplo, usaremos una lógica donde mapeamos el código al ID.
-            # (Lo ideal sería consultar la tabla 'antibioticos' primero)
-            
-            nueva_fila = {
-                "identificacion_muestra": id_muestra,
-                "interpretacion": interpretacion,
-                # Aquí deberías poner el ID numérico del antibiótico 
-                # correspondiente a 'AMP', 'CIP', etc.
-                "antibiotico_id": obtener_id_atb(atb_codigo), 
-                "valor_cim": "N/A" # O el valor que desees
-            }
-            filas_a_insertar.append(nueva_fila)
-        
-        # 2. Insertamos todas las filas de una vez en la tabla 'resultados'
-        supabase.table("resultados").insert(filas_a_insertar).execute()
-        st.success(f"✅ Se han registrado los 12 antibióticos para la muestra {id_muestra}")
+st.set_page_config(page_title="LIMS Profesional RAM", layout="wide")
 
-    except Exception as e:
-        st.error(f"Error al guardar: {e}")
+# --- 2. FUNCIONES DE CARGA DE DATOS ---
+@st.cache_data
+def obtener_catalogos():
+    # Traemos microorganismos
+    m_query = supabase.table("microorganismos").select("id, nombre_cientifico").execute()
+    # Traemos antibióticos
+    a_query = supabase.table("antibioticos").select("id, nombre").execute()
+    return m_query.data, a_query.data
 
-# Función auxiliar para convertir el código (AMP) en el ID que espera tu tabla (int4)
-def obtener_id_atb(codigo):
-    # Esto es un ejemplo. Debes asegurarte de que estos IDs 
-    # coincidan con los de tu tabla 'antibioticos'
-    mapeo = {
-        'AMP': 1, 'CIP': 2, 'FEP': 3, 'CRO': 4, 'CAZ': 5, 
-        'CZO': 6, 'ETP': 7, 'FOS': 8, 'GEN': 9, 'MEM': 10, 
-        'NOR': 11, 'TMP': 12
-    }
-    return mapeo.get(codigo)
+try:
+    micros, atbs_data = obtener_catalogos()
+    dict_micros = {m['nombre_cientifico']: m['id'] for m in micros}
+    # Filtramos solo tus 12 antibióticos específicos si es necesario
+    nombres_atbs = [a['nombre'] for a in atbs_data]
+    dict_atbs = {a['nombre']: a['id'] for a in atbs_data}
+except Exception as e:
+    st.error(f"Error cargando catálogos de Supabase: {e}")
+    st.stop()
+
+# --- 3. INTERFAZ DE USUARIO ---
+st.title("🔬 Registro de Antibiograma Relacional")
+st.info("Este formulario guarda datos vinculando las tablas de Microorganismos y Antibióticos.")
+
+with st.form("registro_lims"):
+    col1, col2 = st.columns(2)
+    with col1:
+        id_muestra = st.text_input("🆔 Identificación de Muestra")
+        micro_sel = st.selectbox("🧫 Microorganismo detectado", options=list(dict_micros.keys()))
+    with col2:
+        fecha_proc = st.date_input("📅 Fecha de Registro", date.today())
+        # Puedes añadir aquí valor_cim si lo usas
+    
+    st.write("---")
+    st.write("### 🧪 Resultados de Susceptibilidad")
+    
+    # Creamos la cuadrícula para los antibióticos
+    cols = st.columns(4)
+    resultados_input = {}
+    
+    # Aquí usamos los nombres reales que vienen de tu tabla 'antibioticos'
+    for i, nombre_atb in enumerate(nombres_atbs[:12]): # Limitamos a 12
+        with cols[i % 4]:
+            resultados_input[nombre_atb] = st.selectbox(nombre_atb, ["S", "I", "R"], key=nombre_atb)
+
+    enviar = st.form_submit_button("💾 Guardar registros vinculados")
+
+    if enviar:
+        if id_muestra:
+            try:
+                # 4. PREPARACIÓN DE DATOS (Formato Relacional)
+                filas_para_insertar = []
+                for nombre_atb, interpretacion in resultados_input.items():
+                    fila = {
+                        "identificacion_muestra": id_muestra,
+                        "fecha_registro": str(fecha_proc),
+                        "microorganismo_id": dict_micros[micro_sel],
+                        "antibiotico_id": dict_atbs[nombre_atb],
+                        "interpretacion": interpretacion,
+                        "valor_cim": "N/A" # Opcional
+                    }
+                    filas_para_insertar.append(fila)
+                
+                # 5. INSERCIÓN MASIVA
+                supabase.table("resultados").insert(filas_para_insertar).execute()
+                st.success(f"✅ Éxito: Se crearon {len(filas_para_insertar)} registros vinculados a la muestra {id_muestra}")
+                
+            except Exception as e:
+                st.error(f"Error al insertar en la tabla 'resultados': {e}")
+        else:
+            st.warning("⚠️ El ID de muestra es obligatorio.")
+
+# --- 6. VISTA DE DATOS ---
+st.write("---")
+if st.button("📊 Ver últimos resultados"):
+    res_query = supabase.table("resultados").select("*, microorganismos(nombre_cientifico), antibioticos(nombre)").limit(20).execute()
+    if res_query.data:
+        st.dataframe(pd.DataFrame(res_query.data))
