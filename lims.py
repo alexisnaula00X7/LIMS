@@ -47,6 +47,7 @@ with st.form("formulario_registro"):
             "bacteria": bacteria, **resultados
         }
         try:
+            # Debe ser exactamente igual al que creaste en SQL
             supabase.table("registros_resistencia").insert(datos).execute()
             st.success("✅ ¡Datos guardados correctamente!")
         except Exception as e:
