@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1j8Rd4sVPZFs7w8prFzBtw8EBepQhdaTv
 """
 
-!pip install streamlit
-
 import streamlit as st
 import pandas as pd
 from datetime import date
