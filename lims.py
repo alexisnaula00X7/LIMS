@@ -5,7 +5,7 @@ from datetime import date
 
 # 1. Conexión a Supabase
 # En producción, usa st.secrets para proteger estas claves
-SUPABASE_URL = "https://supabase.com/dashboard/project/xbqwxdcelgjwpancjjlj/database/schemas"
+SUPABASE_URL = "https://xbqwxdcelgjwpancjjlj.supabase.co"
 SUPABASE_KEY = "sb_secret_xotldyoauUJ2awRx2pXUCA_MKQ0wgKk"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
