@@ -7,13 +7,9 @@ import plotly.express as px
 import unicodedata
 
 # --- 1. CONFIGURACIÓN DE CONEXIÓN ---
-try:
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-except Exception:
-    # Valores por defecto para desarrollo local
-    SUPABASE_URL = "https://ixlswhhyrczywdgxrrxp.supabase.co"
-    SUPABASE_KEY = "sb_publishable_axfFMhjw5GOTZy-YWI6pXA_cCtiVoc-"
+# Forzamos a Streamlit a leer los Secrets reales. Si no existen, se detendrá aquí con un error claro.
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 @st.cache_resource
 def get_supabase_client():
