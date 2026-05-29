@@ -72,10 +72,6 @@ def normalizar_texto(texto):
 st.set_page_config(page_title="LIMS - Biología Molecular", layout="wide")
 st.title("🧪 Laboratorio de Biología Molecular - Control de Muestras")
 
-tab_datos, tab_graf, tab_prov, tab_avanzado = st.tabs([
-    "📥 Gestión de Datos (BMI)", "📊 Resumen General Mensual", "🌍 Análisis por Provincia", "📈 Análisis Avanzado"
-])
-
 # --- OBTENER DATOS DESDE LA TABLA 'DATA_BMI' EN SUPABASE ---
 with st.spinner("Conectando con la base de datos 'DATA_BMI'..."):
     try:
@@ -94,32 +90,32 @@ with st.spinner("Conectando con la base de datos 'DATA_BMI'..."):
 if df_muestras.empty:
     st.warning("⚠️ No se encontraron registros en la tabla 'DATA_BMI'. Mostrando simulación con tu nueva estructura de columnas.")
     df_muestras = pd.DataFrame({
-        "CODIGO DE MUESTRA": ["M-001", "M-002"],
-        "FECHA": ["2026-01-15", "2026-02-10"],
-        "MES": ["Enero", "Febrero"],
-        "AÑO": [2026, 2026],  # Nota: Si en Supabase falla por la Ñ, cámbialo a "ANO" aquí y en el formulario
-        "ORDEN DE TRABAJO": ["OT-100", "OT-101"],
-        "TIPO DE CLIENTE": ["Interno", "Externo"],
-        "INFORME": ["INF-01", "INF-02"],
-        "ESPECIE": ["Bovino", "Porcino"],
-        "PROPIETARIO": ["Juan Pérez", "María López"],
-        "MOTIVO DE ANÁLISIS": ["Vigilancia", "Diagnóstico"],
-        "PROYECTO/PROGRAMA/PROCESO": ["Control Sanitario", "Erradicación"],
-        "PROVINCIA": ["Pichincha", "Guayas"],
-        "CANTON": ["Quito", "Guayaquil"],
-        "PARROQUIA": ["Iñaquito", "Tarqui"],
-        "TIPO DE MUESTRA": ["Sangre", "Suero"],
-        "FECHA DE COLECTA": ["2026-01-10", "2026-02-05"],
-        "ENFERMEDAD/ DIAGNÓSTICO": ["Brucelosis", "Salmonella"],
-        "TÉCNICA DIAGNÓSTICA": ["PCR", "ELISA"],
-        "FECHA INICIO ANÁLISIS": ["2026-01-12", "2026-02-08"],
-        "FECHA FINALIZACIÓN ANÁLISIS": ["2026-01-15", "2026-02-10"],
-        "FECHA DE INFORME": ["2026-01-16", "2026-02-11"],
-        "Nº INFORMES EMITIDOS": [1, 1],
-        "Nº MUESTRAS ANALIZADAS": [10, 20],
-        "POSITIVO": [2, 5],
-        "NEGATIVO": [8, 15],
-        "ESPECIE_IDENTIFICADA": ["Brucella abortus", "Salmonella enterica"]
+        "CODIGO DE MUESTRA": ["M-001", "M-002", "M-003"],
+        "FECHA": ["2026-01-15", "2026-02-10", "2026-03-05"],
+        "MES": ["Enero", "Febrero", "Marzo"],
+        "AÑO": [2026, 2026, 2025],
+        "ORDEN DE TRABAJO": ["OT-100", "OT-101", "OT-102"],
+        "TIPO DE CLIENTE": ["Interno", "Externo", "Interno"],
+        "INFORME": ["INF-01", "INF-02", "INF-03"],
+        "ESPECIE": ["Bovino", "Porcino", "Bovino"],
+        "PROPIETARIO": ["Juan Pérez", "María López", "Carlos Ruiz"],
+        "MOTIVO DE ANÁLISIS": ["Vigilancia", "Diagnóstico", "Vigilancia"],
+        "PROYECTO/PROGRAMA/PROCESO": ["Control Sanitario", "Erradicación", "Control Sanitario"],
+        "PROVINCIA": ["Pichincha", "Guayas", "Pichincha"],
+        "CANTON": ["Quito", "Guayaquil", "Quito"],
+        "PARROQUIA": ["Iñaquito", "Tarqui", "Belisario"],
+        "TIPO DE MUESTRA": ["Sangre", "Suero", "Sangre"],
+        "FECHA DE COLECTA": ["2026-01-10", "2026-02-05", "2026-03-01"],
+        "ENFERMEDAD/ DIAGNÓSTICO": ["Brucelosis", "Salmonella", "Brucelosis"],
+        "TÉCNICA DIAGNÓSTICA": ["PCR", "ELISA", "PCR"],
+        "FECHA INICIO ANÁLISIS": ["2026-01-12", "2026-02-08", "2026-03-03"],
+        "FECHA FINALIZACIÓN ANÁLISIS": ["2026-01-15", "2026-02-10", "2026-03-05"],
+        "FECHA DE INFORME": ["2026-01-16", "2026-02-11", "2026-03-06"],
+        "Nº INFORMES EMITIDOS": [1, 1, 1],
+        "Nº MUESTRAS ANALIZADAS": [10, 20, 15],
+        "POSITIVO": [2, 5, 1],
+        "NEGATIVO": [8, 15, 14],
+        "ESPECIE_IDENTIFICADA": ["Brucella abortus", "Salmonella enterica", "Brucella abortus"]
     })
 
 # Asegurar tipos de datos numéricos obligatorios para gráficos
@@ -131,10 +127,58 @@ if col_total in df_muestras.columns:
 else:
     df_muestras[col_total] = df_muestras["POSITIVO"] + df_muestras["NEGATIVO"]
 
+# --- 5. SECCIÓN GLOBAL DE FILTROS ---
+st.markdown("### 🔍 Filtros de Búsqueda y Análisis")
+c_filt1, c_filt2, c_filt3 = st.columns(3)
+
+col_anio_busca = "AÑO" if "AÑO" in df_muestras.columns else "ANO"
+col_diag = None
+for c in df_muestras.columns:
+    if "ENFERMEDAD" in c or "DIAG" in c:
+        col_diag = c
+        break
+
+with c_filt1:
+    if col_anio_busca in df_muestras.columns and not df_muestras.empty:
+        anios_disp = ["Todos"] + sorted([int(x) for x in df_muestras[col_anio_busca].dropna().unique()], reverse=True)
+        año_sel = st.selectbox("Filtrar por Año:", options=anios_disp)
+    else:
+        año_sel = "Todos"
+
+with c_filt2:
+    if col_diag and not df_muestras.empty:
+        diags_disp = ["Todos"] + sorted(list(df_muestras[col_diag].dropna().unique()))
+        diag_sel = st.selectbox("Filtrar por Enfermedad / Diagnóstico:", options=diags_disp)
+    else:
+        diag_sel = "Todos"
+
+with c_filt3:
+    if "ESPECIE" in df_muestras.columns and not df_muestras.empty:
+        especies_disp = ["Todos"] + sorted(list(df_muestras["ESPECIE"].dropna().unique()))
+        especie_sel = st.selectbox("Filtrar por Especie Animal:", options=especies_disp)
+    else:
+        especie_sel = "Todos"
+
+# Aplicación secuencial de los filtros seleccionados
+df_filtrado = df_muestras.copy()
+if año_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado[col_anio_busca] == año_sel]
+if col_diag and diag_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado[col_diag] == diag_sel]
+if especie_sel != "Todos" and "ESPECIE" in df_filtrado.columns:
+    df_filtrado = df_filtrado[df_filtrado["ESPECIE"] == especie_sel]
+
+st.divider()
+
+# --- 6. RENDERIZADO DE LAS PESTAÑAS ---
+tab_datos, tab_graf, tab_prov, tab_avanzado = st.tabs([
+    "📥 Gestión de Datos (BMI)", "📊 Resumen General Mensual", "🌍 Análisis por Provincia", "📈 Análisis Avanzado"
+])
+
 # --- TAB: GESTIÓN DE DATOS ---
 with tab_datos:
-    st.subheader("📋 Registros Actuales en DATA_BMI")
-    st.dataframe(df_muestras, use_container_width=True)
+    st.subheader("📋 Registros Coincidentes en DATA_BMI")
+    st.dataframe(df_filtrado, use_container_width=True)
     
     with st.expander("➕ Registrar Nueva Muestra Analizada Completa"):
         with st.form("form_bmi_completo", clear_on_submit=True):
@@ -175,12 +219,11 @@ with tab_datos:
             
             if st.form_submit_button("Guardar en Supabase"):
                 try:
-                    # Diccionario mapeado con la estructura exacta que pasaste
                     nueva_data = {
                         "Codigo de Muestra": cod_m,
                         "FECHA": fecha_p.isoformat(),
                         "MES": MESES_DB[fecha_p.month - 1].capitalize(),
-                        "AÑO": fecha_p.year,  # Si da error por la Ñ en tu Supabase, cámbialo a "ANO" o "AÑO" según corresponda
+                        "AÑO": fecha_p.year,
                         "ORDEN DE TRABAJO": orden_t,
                         "TIPO DE CLIENTE": tipo_c,
                         "INFORME": informe_p,
@@ -213,13 +256,11 @@ with tab_datos:
 # --- TAB: RESUMEN GENERAL MENSUAL ---
 with tab_graf:
     st.header("📊 Rendimiento Cronológico del Laboratorio")
-    col_anio_busca = "AÑO" if "AÑO" in df_muestras.columns else "ANO"
-    if col_anio_busca in df_muestras.columns:
-        años_disp = sorted(df_muestras[col_anio_busca].unique(), reverse=True)
-        año_sel = st.selectbox("Seleccione el Año de Análisis:", options=años_disp, key="sel_anio_graf")
-        df_anio = df_muestras[df_muestras[col_anio_busca] == año_sel]
-        
-        df_mes = df_anio.groupby("MES").agg({"POSITIVO": "sum", "NEGATIVO": "sum", col_total: "sum"}).reset_index()
+    
+    if df_filtrado.empty:
+        st.warning("⚠️ No se encontraron registros para la combinación de filtros seleccionada.")
+    else:
+        df_mes = df_filtrado.groupby("MES").agg({"POSITIVO": "sum", "NEGATIVO": "sum", col_total: "sum"}).reset_index()
         df_mes["MES_NORM"] = df_mes["MES"].apply(normalizar_texto)
         
         orden_meses = {m: i for i, m in enumerate(MESES_DB)}
@@ -237,18 +278,21 @@ with tab_graf:
             go.Bar(name='Positivos', x=df_mes['MES'], y=df_mes['POSITIVO'], marker_color='#ef553b'),
             go.Bar(name='Negativos', x=df_mes['MES'], y=df_mes['NEGATIVO'], marker_color='#1f77b4')
         ])
-        fig_mensual.update_layout(barmode='group', title=f"Distribución Mensual de Resultados - Gestión {año_sel}", yaxis_title="Cantidad de Muestras")
+        fig_mensual.update_layout(barmode='group', title="Distribución Mensual de Resultados", yaxis_title="Cantidad de Muestras")
         st.plotly_chart(fig_mensual, use_container_width=True)
 
 # --- TAB: ANÁLISIS POR PROVINCIA ---
 with tab_prov:
     st.header("🌍 Monitoreo Epidemiológico por Provincia")
-    if "PROVINCIA" in df_muestras.columns:
-        df_prov_est = df_muestras.groupby("PROVINCIA").agg({"POSITIVO": "sum", "NEGATIVO": "sum", col_total: "sum"}).reset_index()
+    
+    if df_filtrado.empty:
+        st.warning("⚠️ No se encontraron registros para la combinación de filtros seleccionada.")
+    elif "PROVINCIA" in df_filtrado.columns:
+        df_prov_est = df_filtrado.groupby("PROVINCIA").agg({"POSITIVO": "sum", "NEGATIVO": "sum", col_total: "sum"}).reset_index()
         
         kpi1, kpi2, kpi3 = st.columns(3)
-        alertas_activas = df_prov_est[df_prov_est["POSITIVO"] > 5]["PROVINCIA"].count()
-        prov_max = df_prov_est.loc[df_prov_est["POSITIVO"].idxmax()]["PROVINCIA"] if not df_prov_est.empty else "N/A"
+        alertas_activas = df_prov_est[df_prov_est["POSITIVO"] > 5]["PROVINCIA"].count() if not df_prov_est.empty else 0
+        prov_max = df_prov_est.loc[df_prov_est["POSITIVO"].idxmax()]["PROVINCIA"] if not df_prov_est.empty and df_prov_est["POSITIVO"].sum() > 0 else "N/A"
         
         kpi1.metric("Provincias en Alerta (>5 Positivos)", f"{alertas_activas}", delta="- Acción Inmediata" if alertas_activas > 0 else "Estable", delta_color="inverse")
         kpi2.metric("Foco Sanitario Principal", f"{prov_max}")
@@ -275,43 +319,44 @@ with tab_prov:
 # --- TAB: ANÁLISIS AVANZADO ---
 with tab_avanzado:
     st.header("📈 Estadística Avanzada y Distribución de Patologías")
-    col_diag = None
-    for c in df_muestras.columns:
-        if "ENFERMEDAD" in c or "DIAG" in c:
-            col_diag = c
-            break
-
-    col_s1, col_s2 = st.columns([1, 2])
-    with col_s1:
-        st.markdown("#### 📊 Descriptores Estadísticos")
-        media_pos = round(df_muestras["POSITIVO"].mean(), 2)
-        desviacion_pos = round(df_muestras["POSITIVO"].std(), 2)
-        total_analizadas = df_muestras[col_total].sum()
-        tasa_positividad = round((df_muestras["POSITIVO"].sum() / total_analizadas) * 100, 2) if total_analizadas > 0 else 0
-        
-        st.metric("Media de Positivos por Registro", f"{media_pos} muestras")
-        st.metric("Desviación Estándar (Dispersión)", f"{desviacion_pos}")
-        st.metric("Tasa de Positividad Molecular", f"{tasa_positividad}%")
-        
-    with col_s2:
-        fig_box = px.box(df_muestras, x="PROVINCIA" if "PROVINCIA" in df_muestras.columns else None, y="POSITIVO",
-                         title="Análisis Clínico de Variabilidad por Provincia")
-        st.plotly_chart(fig_box, use_container_width=True)
-        
-    st.divider()
-    st.subheader("🔬 Clasificación Taxonómica de Diagnósticos Positivos")
-    col_tree, col_sun = st.columns(2)
     
-    with col_tree:
-        if col_diag and "PROVINCIA" in df_muestras.columns:
-            fig_tree = px.treemap(df_muestras, path=[col_diag, 'PROVINCIA'], values='POSITIVO',
-                                 title="Distribución de Enfermedades por Región Geográfica", color_continuous_scale='Reds')
-            st.plotly_chart(fig_tree, use_container_width=True)
-        else:
-            st.info("Faltan los campos clínicos necesarios para renderizar el mapa jerárquico.")
+    if df_filtrado.empty:
+        st.warning("⚠️ No se encontraron registros para la combinación de filtros seleccionada.")
+    else:
+        col_s1, col_s2 = st.columns([1, 2])
+        with col_s1:
+            st.markdown("#### 📊 Descriptores Estadísticos")
+            media_pos = round(df_filtrado["POSITIVO"].mean(), 2)
+            desviacion_pos = round(df_filtrado["POSITIVO"].std(), 2)
+            if pd.isna(desviacion_pos):
+                desviacion_pos = 0.0
+                
+            total_analizadas = df_filtrado[col_total].sum()
+            tasa_positividad = round((df_filtrado["POSITIVO"].sum() / total_analizadas) * 100, 2) if total_analizadas > 0 else 0
             
-    with col_sun:
-        if "ESPECIE" in df_muestras.columns and col_diag:
-            fig_sun = px.sunburst(df_muestras, path=['ESPECIE', col_diag], values='POSITIVO',
-                                  title="Afectación por Especie Animal y Patología", color_discrete_sequence=px.colors.qualitative.Safe)
-            st.plotly_chart(fig_sun, use_container_width=True)
+            st.metric("Media de Positivos por Registro", f"{media_pos} muestras")
+            st.metric("Desviación Estándar (Dispersión)", f"{desviacion_pos}")
+            st.metric("Tasa de Positividad Molecular", f"{tasa_positividad}%")
+            
+        with col_s2:
+            fig_box = px.box(df_filtrado, x="PROVINCIA" if "PROVINCIA" in df_filtrado.columns else None, y="POSITIVO",
+                             title="Análisis Clínico de Variabilidad por Provincia")
+            st.plotly_chart(fig_box, use_container_width=True)
+            
+        st.divider()
+        st.subheader("🔬 Clasificación Taxonómica de Diagnósticos Positivos")
+        col_tree, col_sun = st.columns(2)
+        
+        with col_tree:
+            if col_diag and "PROVINCIA" in df_filtrado.columns:
+                fig_tree = px.treemap(df_filtrado, path=[col_diag, 'PROVINCIA'], values='POSITIVO',
+                                     title="Distribución de Enfermedades por Región Geográfica", color_continuous_scale='Reds')
+                st.plotly_chart(fig_tree, use_container_width=True)
+            else:
+                st.info("Faltan los campos clínicos necesarios para renderizar el mapa jerárquico.")
+                
+        with col_sun:
+            if "ESPECIE" in df_filtrado.columns and col_diag:
+                fig_sun = px.sunburst(df_filtrado, path=['ESPECIE', col_diag], values='POSITIVO',
+                                      title="Afectación por Especie Animal y Patología", color_discrete_sequence=px.colors.qualitative.Safe)
+                st.plotly_chart(fig_sun, use_container_width=True)
