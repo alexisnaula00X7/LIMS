@@ -94,13 +94,24 @@ st.title("🧪 Laboratorio de Biología Molecular - Control de Muestras")
 tab_ing, tab_proc, tab_graf, tab_prov, tab_avanzado = st.tabs([
     "📥 Ingresos", "⚙️ Procesados", "📊 Resumen General", "🌍 Análisis por Provincia", "📈 Análisis Avanzado"
 ])
+# --- OBTENER DATOS FILTRADOS DESDE SUPABASE ---
+with st.spinner("Conectando con el servidor de Biología Molecular..."):
+    try:
+        res_i = supabase.table("ingresos_muestras").select("*").eq("laboratorio", LABORATORIO_UNICO).execute()
+        res_p = supabase.table("procesados_muestras").select("*").eq("laboratorio", LABORATORIO_UNICO).execute()
+        df_i_full = pd.DataFrame(res_i.data) if res_i.data else pd.DataFrame()
+        df_p_full = pd.DataFrame(res_p.data) if res_p.data else pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ Error de conexión con la base de datos Supabase: {e}")
+        st.info("Por favor, verifica que la URL y KEY en los Secrets de Streamlit sean correctas y que la base de datos no esté pausada.")
+        df_i_full = pd.DataFrame()
+        df_p_full = pd.DataFrame()
 
-# OBTENER DATOS FILTRADOS POR EL LABORATORIO ÚNICO DESDE SUPABASE
-res_i = supabase.table("ingresos_muestras").select("*").eq("laboratorio", LABORATORIO_UNICO).execute()
-res_p = supabase.table("procesados_muestras").select("*").eq("laboratorio", LABORATORIO_UNICO).execute()
-df_i_full = pd.DataFrame(res_i.data) if res_i.data else pd.DataFrame()
-df_p_full = pd.DataFrame(res_p.data) if res_p.data else pd.DataFrame()
-
+try:
+    res_m = supabase.table("muestras_detalle").select("*").execute()
+    df_muestras = pd.DataFrame(res_m.data) if res_m.data else pd.DataFrame()
+except Exception:
+    df_muestras = pd.DataFrame()
 try:
     res_m = supabase.table("muestras_detalle").select("*").execute()
     df_muestras = pd.DataFrame(res_m.data) if res_m.data else pd.DataFrame()
