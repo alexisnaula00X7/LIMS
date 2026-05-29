@@ -158,4 +158,91 @@ tab_datos, tab_graf, tab_prov, tab_avanzado = st.tabs([
 ])
 
 # --- TAB: DATOS ---
-with tab_
+with tab_datos:
+    st.dataframe(df_filtrado, use_container_width=True)
+    
+    with st.expander("➕ Registrar Nueva Muestra"):
+        with st.form("form_bmi_completo", clear_on_submit=True):
+            c1, c2, c3 = st.columns(3)
+            cod_m = c1.text_input("Código de Muestra")
+            fecha_p = c2.date_input("Fecha Registro", datetime.now())
+            diag_p = c3.text_input("Diagnóstico (Ej: FILOGENIA)")
+            
+            c4, c5, c6 = st.columns(3)
+            esp_p = c4.text_input("Especie Animal")
+            prov_p = c5.text_input("Provincia")
+            esp_id_p = c6.text_input("Especie Identificada (Solo para Filogenia)")
+            
+            c7, c8 = st.columns(2)
+            pos_p = c7.number_input("Positivo", min_value=0)
+            neg_p = c8.number_input("Negativo", min_value=0)
+            
+            if st.form_submit_button("Guardar"):
+                try:
+                    nueva_data = {
+                        "Codigo de Muestra": cod_m,
+                        "FECHA": fecha_p.isoformat(),
+                        "MES": MESES_DB[fecha_p.month - 1].capitalize(),
+                        "AÑO": fecha_p.year,
+                        "ESPECIE": esp_p,
+                        "PROVINCIA": prov_p,
+                        "ENFERMEDAD/ DIAGNÓSTICO": diag_p,
+                        "ESPECIE_IDENTIFICADA": esp_id_p,
+                        "POSITIVO": pos_p,
+                        "NEGATIVO": neg_p,
+                        "Nº MUESTRAS ANALIZADAS": pos_p + neg_p
+                    }
+                    supabase.table("DATA_BMI").insert(nueva_data).execute()
+                    st.success("Guardado.")
+                    st.rerun()
+                except Exception as ex:
+                    st.error(f"Error: {ex}")
+
+# --- TAB: MENSUAL ---
+with tab_graf:
+    if df_filtrado.empty:
+        st.warning("Sin datos.")
+    else:
+        df_mes = df_filtrado.groupby("MES").agg({"POSITIVO": "sum", "NEGATIVO": "sum", col_total: "sum"}).reset_index()
+        df_mes["MES_NORM"] = df_mes["MES"].apply(normalizar_texto)
+        orden_meses = {m: i for i, m in enumerate(MESES_DB)}
+        df_mes["ORDEN"] = df_mes["MES_NORM"].map(orden_meses).fillna(99)
+        df_mes = df_mes.sort_values("ORDEN")
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Analizadas", f"{int(df_mes[col_total].sum())}")
+        m2.metric("Identificaciones / Positivos", f"{int(df_mes['POSITIVO'].sum())}")
+        m3.metric("Confirmados Negativos", f"{int(df_mes['NEGATIVO'].sum())}")
+        
+        fig_mensual = px.bar(df_mes, x='MES', y=['POSITIVO', 'NEGATIVO'], 
+                             title="Evolución Mensual", barmode='group',
+                             color_discrete_map={'POSITIVO': '#ef553b', 'NEGATIVO': '#1f77b4'})
+        st.plotly_chart(fig_mensual, use_container_width=True)
+
+# --- TAB: PROVINCIAS ---
+with tab_prov:
+    if not df_filtrado.empty:
+        df_p = df_filtrado.groupby("PROVINCIA").agg({"POSITIVO": "sum", "NEGATIVO": "sum"}).reset_index()
+        fig_p = px.bar(df_p, x="PROVINCIA", y="POSITIVO", color="PROVINCIA", 
+                       title="Distribución Geográfica (Carga de Positivos / Identificaciones)")
+        st.plotly_chart(fig_p, use_container_width=True)
+
+# --- TAB: AVANZADO ---
+with tab_avanzado:
+    if not df_filtrado.empty:
+        col_c1, col_c2 = st.columns(2)
+        
+        # Ajuste de eje para Filogenia
+        eje_analisis = col_esp_id if es_filogenia else col_diag
+        
+        with col_c1:
+            st.subheader("Mapa Jerárquico")
+            fig_tree = px.treemap(df_filtrado, path=[eje_analisis, 'PROVINCIA'], values='POSITIVO',
+                                 title=f"Jerarquía por {eje_analisis}")
+            st.plotly_chart(fig_tree, use_container_width=True)
+            
+        with col_c2:
+            st.subheader("Distribución por Especie")
+            fig_sun = px.sunburst(df_filtrado, path=['ESPECIE', eje_analisis], values='POSITIVO',
+                                  title="Relación Especie Animal vs Hallazgo")
+            st.plotly_chart(fig_sun, use_container_width=True)
