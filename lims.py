@@ -12,8 +12,8 @@ try:
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 except Exception:
     # Valores por defecto para desarrollo local
-    SUPABASE_URL = "https://ptyemcxzvvzkkvxbeqxw.supabase.co"
-    SUPABASE_KEY = "sb_publishable_IOE6cLvYfS7PuALxUXOWFw_uGtCQsSB"
+    SUPABASE_URL = "https://ixlswhhyrczywdgxrrxp.supabase.co"
+    SUPABASE_KEY = "sb_publishable_axfFMhjw5GOTZy-YWI6pXA_cCtiVoc-"
 
 @st.cache_resource
 def get_supabase_client():
