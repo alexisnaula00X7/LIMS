@@ -8,13 +8,13 @@ import unicodedata
 
 # --- 1. CONFIGURACIÓN DE CONEXIÓN ---
 try:
-    SUPABASE_URL = "https://tu-id-real-de-supabase.supabase.co"
-    SUPABASE_KEY = "tu-clave-anon-real-de-supabase"
+    SUPABASE_URL = "https://ptyemcxzvvzkkvxbeqxw.supabase.co"
+    SUPABASE_KEY = "sb_publishable_IOE6cLvYfS7PuALxUXOWFw_uGtCQsSB"
     
 except Exception:
     # Valores por defecto para desarrollo local
-    SUPABASE_URL = "https://tu-proyecto.supabase.co"
-    SUPABASE_KEY = "tu-clave-anon"
+    SUPABASE_URL = "https://ptyemcxzvvzkkvxbeqxw.supabase.co"
+    SUPABASE_KEY = "sb_publishable_IOE6cLvYfS7PuALxUXOWFw_uGtCQsSB"
 
 @st.cache_resource
 def get_supabase_client():
