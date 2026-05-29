@@ -7,7 +7,6 @@ import plotly.express as px
 import unicodedata
 
 # --- 1. CONFIGURACIÓN DE CONEXIÓN ---
-# Forzamos a Streamlit a leer los Secrets reales. Si no existen, se detendrá aquí con un error claro.
 try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -74,27 +73,27 @@ st.set_page_config(page_title="LIMS - Biología Molecular", layout="wide")
 st.title("🧪 Laboratorio de Biología Molecular - Control de Muestras")
 
 tab_datos, tab_graf, tab_prov, tab_avanzado = st.tabs([
-    "📥 Gestión de Datos (IMC)", "📊 Resumen General Mensual", "🌍 Análisis por Provincia", "📈 Análisis Avanzado"
+    "📥 Gestión de Datos (BMI)", "📊 Resumen General Mensual", "🌍 Análisis por Provincia", "📈 Análisis Avanzado"
 ])
 
-# --- OBTENER DATOS DESDE LA TABLA 'IMC' EN SUPABASE ---
-with st.spinner("Conectando con la base de datos 'IMC'..."):
+# --- OBTENER DATOS DESDE LA TABLA 'DATA_BMI' EN SUPABASE ---
+with st.spinner("Conectando con la base de datos 'DATA_BMI'..."):
     try:
-        # SE USA "IMC" EN MAYÚSCULAS
-        res_m = supabase.table("IMC").select("*").execute()
+        # CORREGIDO: Ahora apunta a "DATA_BMI"
+        res_m = supabase.table("DATA_BMI").select("*").execute()
         df_muestras = pd.DataFrame(res_m.data) if res_m.data else pd.DataFrame()
         
-        # Corrección automática de mayúsculas/minúsculas en las columnas comunes de Supabase
+        # Estandarización automática de columnas a mayúsculas
         if not df_muestras.empty:
             df_muestras.columns = [col.upper() for col in df_muestras.columns]
     except Exception as e:
-        st.error(f"❌ Error de conexión con la tabla 'IMC': {e}")
-        st.info("Por favor, verifica tus Secrets en Streamlit Share y que la URL no tenga una '/' al final.")
+        st.error(f"❌ Error de conexión con la tabla 'DATA_BMI': {e}")
+        st.info("Por favor, verifica que la tabla exista con este nombre exacto en Supabase y que no esté vacía.")
         df_muestras = pd.DataFrame()
 
-# Si la base de datos está vacía en Supabase, cargamos una simulación
+# Simulación en caso de que la tabla esté vacía para que la interfaz no falle
 if df_muestras.empty:
-    st.warning("⚠️ No se encontraron registros en la tabla 'IMC' de Supabase. Mostrando datos de simulación.")
+    st.warning("⚠️ No se encontraron registros en la tabla 'DATA_BMI' de Supabase. Mostrando datos de simulación.")
     df_muestras = pd.DataFrame({
         "FECHA": ["2026-01-15", "2026-02-10", "2026-03-05", "2026-03-20", "2026-04-11", "2026-05-01"],
         "MES": ["Enero", "Febrero", "Marzo", "Marzo", "Abril", "Mayo"],
@@ -102,167 +101,4 @@ if df_muestras.empty:
         "PROVINCIA": ["Pichincha", "Guayas", "Pichincha", "Guayas", "Azuay", "Manabí"],
         "POSITIVO": [6, 12, 4, 3, 2, 8],
         "NEGATIVO": [20, 45, 15, 12, 18, 22],
-        "Nº MUESTRAS ANALIZADAS": [26, 57, 19, 15, 20, 30],
-        "ENFERMEDAD/ DIAGNÓSTICO": ["Brucelosis", "Brucelosis", "Salmonella", "Mastitis", "Salmonella", "Peste Porcina"],
-        "ESPECIE": ["Bovino", "Bovino", "Porcino", "Bovino", "Porcino", "Porcino"]
-    })
-
-# Asegurar tipos de datos numéricos para los análisis
-df_muestras["POSITIVO"] = pd.to_numeric(df_muestras["POSITIVO"], errors='coerce').fillna(0)
-df_muestras["NEGATIVO"] = pd.to_numeric(df_muestras["NEGATIVO"], errors='coerce').fillna(0)
-if "Nº MUESTRAS ANALIZADAS" in df_muestras.columns:
-    df_muestras["Nº MUESTRAS ANALIZADAS"] = pd.to_numeric(df_muestras["Nº MUESTRAS ANALIZADAS"], errors='coerce').fillna(0)
-else:
-    df_muestras["Nº MUESTRAS ANALIZADAS"] = df_muestras["POSITIVO"] + df_muestras["NEGATIVO"]
-
-# --- TAB: GESTIÓN DE DATOS ---
-with tab_datos:
-    st.subheader("📋 Registros Actuales en la Tabla IMC")
-    st.dataframe(df_muestras, use_container_width=True)
-    
-    with st.expander("➕ Registrar Nueva Muestra Analizada"):
-        with st.form("form_imc", clear_on_submit=True):
-            col_a, col_b, col_c = st.columns(3)
-            fecha_ins = col_a.date_input("Fecha", datetime.now())
-            provincia_ins = col_b.text_input("Provincia", value="Pichincha")
-            especie_ins = col_c.text_input("Especie", value="Bovino")
-            
-            col_d, col_e, col_f = st.columns(3)
-            diagnostico_ins = col_d.text_input("Enfermedad / Diagnóstico", value="Brucelosis")
-            pos_ins = col_e.number_input("Muestras Positivas", min_value=0, step=1, value=0)
-            neg_ins = col_f.number_input("Muestras Negativas", min_value=0, step=1, value=0)
-            
-            if st.form_submit_button("Guardar en Supabase"):
-                try:
-                    # CLAVES EN MAYÚSCULAS PARA EVITAR ERROR DE COLUMNA NO ENCONTRADA
-                    nueva_data = {
-                        "FECHA": fecha_ins.isoformat(),
-                        "MES": MESES_DB[fecha_ins.month - 1].capitalize(),
-                        "AÑO": fecha_ins.year,
-                        "PROVINCIA": provincia_ins,
-                        "ESPECIE": especie_ins,
-                        "ENFERMEDAD/ DIAGNÓSTICO": diagnostico_ins,
-                        "POSITIVO": pos_ins,
-                        "NEGATIVO": neg_ins,
-                        "Nº MUESTRAS ANALIZADAS": pos_ins + neg_ins
-                    }
-                    # SE USA "IMC" EN MAYÚSCULAS
-                    supabase.table("IMC").insert(nueva_data).execute()
-                    st.success("¡Registro guardado exitosamente!")
-                    st.rerun()
-                except Exception as ex:
-                    st.error(f"Error al guardar: {ex}")
-
-# --- TAB: RESUMEN GENERAL MENSUAL ---
-with tab_graf:
-    st.header("📊 Rendimiento Cronológico del Laboratorio")
-    
-    if "AÑO" in df_muestras.columns:
-        años_disp = sorted(df_muestras['AÑO'].unique(), reverse=True)
-        año_sel = st.selectbox("Seleccione el Año de Análisis:", options=años_disp, key="sel_anio_graf")
-        
-        df_anio = df_muestras[df_muestras['AÑO'] == año_sel]
-        
-        df_mes = df_anio.groupby("MES").agg({"POSITIVO": "sum", "NEGATIVO": "sum", "Nº MUESTRAS ANALIZADAS": "sum"}).reset_index()
-        df_mes["MES_NORM"] = df_mes["MES"].apply(normalizar_texto)
-        
-        orden_meses = {m: i for i, m in enumerate(MESES_DB)}
-        df_mes["ORDEN"] = df_mes["MES_NORM"].map(orden_meses).fillna(99)
-        df_mes = df_mes.sort_values("ORDEN")
-        
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Total Muestras Analizadas", f"{int(df_mes['Nº MUESTRAS ANALIZADAS'].sum())}")
-        m2.metric("Total Positivos Identificados", f"{int(df_mes['POSITIVO'].sum())}")
-        m3.metric("Total Negativos Confirmados", f"{int(df_mes['NEGATIVO'].sum())}")
-        
-        st.divider()
-        
-        fig_mensual = go.Figure(data=[
-            go.Bar(name='Positivos', x=df_mes['MES'], y=df_mes['POSITIVO'], marker_color='#ef553b'),
-            go.Bar(name='Negativos', x=df_mes['MES'], y=df_mes['NEGATIVO'], marker_color='#1f77b4')
-        ])
-        fig_mensual.update_layout(barmode='group', title=f"Distribución Mensual de Resultados - Gestión {año_sel}", yaxis_title="Cantidad de Muestras")
-        st.plotly_chart(fig_mensual, use_container_width=True)
-
-# --- TAB: ANÁLISIS POR PROVINCIA ---
-with tab_prov:
-    st.header("🌍 Monitoreo Epidemiológico y Control de Alertas por Provincia")
-    
-    if "PROVINCIA" in df_muestras.columns:
-        df_prov_est = df_muestras.groupby("PROVINCIA").agg({"POSITIVO": "sum", "NEGATIVO": "sum", "Nº MUESTRAS ANALIZADAS": "sum"}).reset_index()
-        
-        kpi1, kpi2, kpi3 = st.columns(3)
-        alertas_activas = df_prov_est[df_prov_est["POSITIVO"] > 5]["PROVINCIA"].count()
-        prov_max = df_prov_est.loc[df_prov_est["POSITIVO"].idxmax()]["PROVINCIA"] if not df_prov_est.empty else "N/A"
-        
-        kpi1.metric("Provincias en Alerta (>5 Positivos)", f"{alertas_activas}", delta="- Acción Inmediata" if alertas_activas > 0 else "Estable", delta_color="inverse")
-        kpi2.metric("Foco Sanitario Principal", f"{prov_max}")
-        kpi3.metric("Carga Total Positivos (Nacional)", f"{int(df_prov_est['POSITIVO'].sum())}")
-        
-        st.divider()
-        
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            df_prov_est["Estado"] = df_prov_est["POSITIVO"].apply(lambda x: "🚨 Alerta (>5)" if x > 5 else "✅ Bajo Control")
-            fig_alertas = px.bar(df_prov_est, x="PROVINCIA", y="POSITIVO", color="Estado",
-                                 color_discrete_map={"🚨 Alerta (>5)": "#ef553b", "✅ Bajo Control": "#636efa"}, 
-                                 text="POSITIVO", title="Muestras Positivas Acumuladas por Provincia")
-            fig_alertas.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Límite de Alerta")
-            st.plotly_chart(fig_alertas, use_container_width=True)
-            
-        with col_g2:
-            fig_stack = go.Figure()
-            fig_stack.add_trace(go.Bar(name='Positivos', x=df_prov_est['PROVINCIA'], y=df_prov_est['POSITIVO'], marker_color='#ef553b'))
-            fig_stack.add_trace(go.Bar(name='Negativos', x=df_prov_est['PROVINCIA'], y=df_prov_est['NEGATIVO'], marker_color='#00cc96'))
-            fig_stack.update_layout(barmode='stack', title="Relación de Proporciones (Positivos vs Negativos)")
-            st.plotly_chart(fig_stack, use_container_width=True)
-
-# --- TAB: ANÁLISIS AVANZADO ---
-with tab_avanzado:
-    st.header("📈 Estadística Avanzada y Distribución de Patologías")
-    
-    col_s1, col_s2 = st.columns([1, 2])
-    
-    with col_s1:
-        st.markdown("#### 📊 Descriptores Estadísticos Generales")
-        media_pos = round(df_muestras["POSITIVO"].mean(), 2)
-        desviacion_pos = round(df_muestras["POSITIVO"].std(), 2)
-        total_analizadas = df_muestras["Nº MUESTRAS ANALIZADAS"].sum()
-        tasa_positividad = round((df_muestras["POSITIVO"].sum() / total_analizadas) * 100, 2) if total_analizadas > 0 else 0
-        
-        st.metric("Media de Positivos por Registro", f"{media_pos} muestras")
-        st.metric("Desviación Estándar (Dispersión)", f"{desviacion_pos}")
-        st.metric("Tasa de Positividad General Molecular", f"{tasa_positividad}%")
-        
-    with col_s2:
-        fig_box = px.box(df_muestras, x="PROVINCIA" if "PROVINCIA" in df_muestras.columns else None, y="POSITIVO",
-                         title="Análisis Clínico de Variabilidad y Valores Atípicos (Picos de Positivos)")
-        st.plotly_chart(fig_box, use_container_width=True)
-        
-    st.divider()
-    
-    st.subheader("🔬 Clasificación Taxonómica de Diagnósticos Positivos")
-    col_tree, col_sun = st.columns(2)
-    
-    col_diag = None
-    for c in df_muestras.columns:
-        if "ENFERMEDAD" in c or "DIAG" in c:
-            col_diag = c
-            break
-
-    with col_tree:
-        if col_diag and "PROVINCIA" in df_muestras.columns:
-            fig_tree = px.treemap(df_muestras, path=[col_diag, 'PROVINCIA'], values='POSITIVO',
-                                 title="Distribución de Enfermedades por Región Geográfica", color_continuous_scale='Reds')
-            st.plotly_chart(fig_tree, use_container_width=True)
-        else:
-            st.info("Faltan los campos clínicos necesarios para renderizar el mapa jerárquico.")
-            
-    with col_sun:
-        if "ESPECIE" in df_muestras.columns and col_diag:
-            fig_sun = px.sunburst(df_muestras, path=['ESPECIE', col_diag], values='POSITIVO',
-                                  title="Afectación por Especie Animal y Patología Asociada", color_discrete_sequence=px.colors.qualitative.Safe)
-            st.plotly_chart(fig_sun, use_container_width=True)
-        else:
-            st.info("Faltan los campos 'ESPECIE' o 'DIAGNÓSTICO' para procesar el gráfico solar.")
+        "Nº MUE
