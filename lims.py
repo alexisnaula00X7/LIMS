@@ -101,4 +101,7 @@ if df_muestras.empty:
         "PROVINCIA": ["Pichincha", "Guayas", "Pichincha", "Guayas", "Azuay", "Manabí"],
         "POSITIVO": [6, 12, 4, 3, 2, 8],
         "NEGATIVO": [20, 45, 15, 12, 18, 22],
-        "Nº MUE
+        "Nº MUESTRAS ANALIZADAS": [26, 57, 19, 15, 20, 30],
+        "ENFERMEDAD/ DIAGNÓSTICO": ["Brucelosis", "Brucelosis", "Salmonella", "Mastitis", "Salmonella", "Peste Porcina"],
+        "ESPECIE": ["Bovino", "Bovino", "Porcino", "Bovino", "Porcino", "Porcino"]
+    })
