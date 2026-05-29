@@ -8,8 +8,9 @@ import unicodedata
 
 # --- 1. CONFIGURACIÓN DE CONEXIÓN ---
 try:
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    SUPABASE_URL = "https://tu-id-real-de-supabase.supabase.co"
+    SUPABASE_KEY = "tu-clave-anon-real-de-supabase"
+    
 except Exception:
     # Valores por defecto para desarrollo local
     SUPABASE_URL = "https://tu-proyecto.supabase.co"
